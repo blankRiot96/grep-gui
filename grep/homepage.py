@@ -48,7 +48,7 @@ class HomePage:
     def create_search_ui(self) -> None:
         self.substring_field = ft.TextField(
             label="Substring",
-            value="run",
+            # value="run",
             hint_text="potato",
             hint_style=ft.TextStyle(weight=ft.FontWeight.W_100),
             icon=ft.icons.TEXT_FORMAT_OUTLINED,

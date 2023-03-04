@@ -4,44 +4,49 @@ from logit import log
 
 
 class FileContainer:
-    def __init__(self, file_path: Path, btn_col: list, substring: str) -> None:
+    FONT_FAMILY = "Hack NF"
+
+    def __init__(
+        self, file_path: Path, btn_col: list, substring: str, on_file_select: callable
+    ) -> None:
         self.path = file_path
         self.btn_col = btn_col
         self.substring = substring
+        self.on_file_select = on_file_select
         self.create_ui()
 
-    def process_line_with_substring(self, line) -> str:
-        founded = ""
-        new_line = ""
-        prev_i = 0
-        for i, char in enumerate(line):
-            founded += char
-            if i == line.index(self.substring, prev_i):
-                prev_i = i
-                new_line += " " * (len(founded) + len(self.substring) * 2)
-                new_line += self.substring
-                founded = ""
+    def process_line_with_substring(self, line: str) -> str:
+        splitted = line.split(self.substring)
+        splitted_arr = (" " * len(sub) for sub in splitted)
+        inserted_arr = [spaces + self.substring for spaces in splitted_arr]
+        inserted_arr.pop()
 
-        return new_line
+        return "".join(inserted_arr)
 
     def get_substring_text(self) -> ft.Text:
         text = ""
         for line in self.path.read_text().splitlines():
-            if self.substring not in line:
-                text += "\n"
-                continue
-
             text += self.process_line_with_substring(line) + "\n"
 
-        return ft.Text(text, color="yellow", weight=ft.FontWeight.BOLD)
+        return ft.Text(text, color="yellow", font_family=FileContainer.FONT_FAMILY)
 
     def create_ui(self) -> None:
-        self.btn_col.append(ft.Container(ft.ElevatedButton(self.path.name)))
+        self.btn_col.append(
+            ft.Container(
+                ft.ElevatedButton(
+                    self.path.name, width=120, on_click=self.on_file_select
+                )
+            )
+        )
         self.container = ft.Stack(
             [
-                ft.Container(ft.Text(self.path.read_text(), selectable=True)),
+                ft.Container(
+                    ft.Text(
+                        self.path.read_text(), font_family=FileContainer.FONT_FAMILY
+                    ),
+                ),
                 ft.Container(self.get_substring_text()),
-            ]
+            ],
         )
 
 
@@ -57,9 +62,21 @@ class SearchPage:
         self.search()
         self.create_ui()
 
+    def on_file_select(self, e) -> None:
+        for index, btn in enumerate(self.btn_col):
+            if btn.content.text == e.control.text:
+                self.current_file_index = index
+
+        self.page.clean()
+        self.finalize_ui()
+
     def search(self):
         for file in self.location.rglob("*.py"):
-            self.files.append(FileContainer(file, self.btn_col, self.substring))
+            if self.substring not in file.read_text():
+                continue
+            self.files.append(
+                FileContainer(file, self.btn_col, self.substring, self.on_file_select)
+            )
 
         for file in self.files:
             self.col.append(file.container)
@@ -70,15 +87,23 @@ class SearchPage:
 
     def create_ui(self) -> None:
         self.set_window_dimensions()
-        self.col.append(ft.Text("Test"))
+
         self.finalize_ui()
 
     def finalize_ui(self) -> None:
-        row = ft.Row(
+        self.row = ft.Row(
             [
-                ft.Column(self.btn_col, scroll=ft.ScrollMode.ALWAYS),
-                self.col[self.current_file_index],
+                ft.Column(
+                    self.btn_col,
+                    scroll=ft.ScrollMode.AUTO,
+                    height=self.page.window_height,
+                ),
+                ft.Column(
+                    [self.col[self.current_file_index]],
+                    height=self.page.window_height,
+                    scroll=ft.ScrollMode.AUTO,
+                ),
             ],
             alignment=ft.MainAxisAlignment.START,
         )
-        self.page.add(row)
+        self.page.add(self.row)
